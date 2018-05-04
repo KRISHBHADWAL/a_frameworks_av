@@ -1943,7 +1943,7 @@ status_t StagefrightRecorder::setupCameraSource(
     pid_t pid = VALUE_OR_RETURN_STATUS(aidl2legacy_int32_t_pid_t(mAttributionSource.pid));
     String16 clientName = VALUE_OR_RETURN_STATUS(
         aidl2legacy_string_view_String16(mAttributionSource.packageName.value_or("")));
-    if (mCaptureFpsEnable && mCaptureFps != mFrameRate ) {
+    if (mCaptureFpsEnable && mCaptureFps != mFrameRate) {
         if (!(mCaptureFps > 0.)) {
             ALOGE("Invalid mCaptureFps value: %lf", mCaptureFps);
             return BAD_VALUE;

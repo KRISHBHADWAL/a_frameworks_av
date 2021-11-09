@@ -40,6 +40,8 @@ cc_library_shared {
     defaults: [
         "camera_package_name_defaults",
         "libcameraservice_ext_lib_defaults",
+        "camera_needs_client_info_lib_defaults",
+        "camera_needs_client_info_lib_oplus_defaults",
     ],
 
     // Camera service source

@@ -118,7 +118,7 @@ using ::vendor::oneplus::hardware::camera::V1_0::IOnePlusCameraProvider;
 #ifdef CAMERA_NEEDS_CLIENT_INFO_LIB_OPLUS
 using ::vendor::oplus::hardware::cameraMDM::V2_0::IOPlusCameraMDM;
 #endif
-namespace flags = com::android::internal::camera::flags;
+
 
 // ----------------------------------------------------------------------------
 // Logging support -- this is for debugging only

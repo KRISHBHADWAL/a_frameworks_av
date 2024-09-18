@@ -28,7 +28,6 @@
 #include <regex>
 #include <thread>
 #include <chrono>
-#include <regex>
 
 #include <C2AllocatorGralloc.h>
 #include <C2PlatformSupport.h>
@@ -85,10 +84,6 @@ constexpr size_t kSmoothnessFactor = 4;
 // This is for keeping IGBP's buffer dropping logic in legacy mode other
 // than making it non-blocking. Do not change this value.
 const static size_t kDequeueTimeoutNs = 0;
-// If app goes into background, decoding paused. we have WA logic in HAL to sleep some actions.
-// This value is to monitor if decoding is paused then we can signal a new empty work to HAL
-// after app resume to foreground to notify HAL something
-const static uint64_t kPipelinePausedTimeoutMs = 500;
 
 // If app goes into background, decoding paused. we have WA logic in HAL to sleep some actions.
 // This value is to monitor if decoding is paused then we can signal a new empty work to HAL
@@ -167,6 +162,7 @@ CCodecBufferChannel::CCodecBufferChannel(
       mMetaMode(MODE_NONE),
       mInputMetEos(false),
       mLastInputBufferAvailableTs(0u),
+      mIsHWDecoder(false),
       mSendEncryptedInfoBuffer(false) {
     {
         Mutexed<Input>::Locked input(mInput);
@@ -747,19 +743,17 @@ void CCodecBufferChannel::feedInputBufferIfAvailable() {
         ALOGV("[%s] We're not running --- no input buffer reported", mName);
         return;
     }
-
     feedInputBufferIfAvailableInternal();
 
     // limit this WA to qc hw decoder only
     // if feedInputBufferIfAvailableInternal() successfully (has available input buffer),
     // mLastInputBufferAvailableTs would be updated. otherwise, not input buffer available
-    std::regex pattern{"c2\\.qti\\..*\\.decoder.*"};
-    if (std::regex_match(mComponentName, pattern)) {
+    if (mIsHWDecoder) {
         std::lock_guard<std::mutex> tsLock(mTsLock);
         uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
                 PipelineWatcher::Clock::now().time_since_epoch()).count();
         if (now - mLastInputBufferAvailableTs > kPipelinePausedTimeoutMs) {
-            ALOGV("long time elapsed since last input available, let's queue a specific work to "
+            ALOGV("[WA] long time elapsed since last input queued, let's queue a specific work to "
                     "HAL to notify something");
             queueDummyWork();
         }
@@ -1786,11 +1780,9 @@ status_t CCodecBufferChannel::requestInitialInputBuffers(
     }
 
     if (!clientInputBuffers.empty()) {
-        {
-            std::lock_guard<std::mutex> tsLock(mTsLock);
-            mLastInputBufferAvailableTs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    PipelineWatcher::Clock::now().time_since_epoch()).count();
-        }
+        std::lock_guard<std::mutex> tsLock(mTsLock);
+        mLastInputBufferAvailableTs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                PipelineWatcher::Clock::now().time_since_epoch()).count();
     }
 
     for (const auto &[index, buffer] : clientInputBuffers) {
